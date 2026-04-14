@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Extractor</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="background-orb orb-a"></div>
+    <div class="background-orb orb-b"></div>
+
+    <div class="container">
+        <section class="hero">
+            <div class="hero-card">
+                <div class="eyebrow">PDF • OCR • TXT • JSON • XML</div>
+                <h1>Extrakcia textu z PDF</h1>
+                <p>
+                    Nahraj jeden alebo viac PDF dokumentov, vyčisti opakované hlavičky a pätičky,
+                    použi OCR len tam, kde je to potrebné, a exportuj výsledok do TXT, JSON alebo XML.
+                </p>
+
+                <div class="stats">
+                    <div class="stat">
+                        <strong>Viac PDF naraz</strong>
+                        <span>Spracovanie viacerých dokumentov jedným odoslaním</span>
+                    </div>
+                    <div class="stat">
+                        <strong>Auto OCR</strong>
+                        <span>Fallback len pri slabom alebo chýbajúcom texte</span>
+                    </div>
+                    <div class="stat">
+                        <strong>Export</strong>
+                        <span>Priamy výstup do TXT, JSON aj XML</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-card hero-side">
+                <div>
+                    <h2 style="font-size: 1.3rem; margin-bottom: 8px;">Odporúčaný režim</h2>
+                    <p>Pre väčšinu PDF je najlepší režim <strong>Auto</strong>, kde sa OCR použije len vtedy, keď textová vrstva nestačí.</p>
+                </div>
+
+                <div class="mini-list">
+                    <div class="mini-item">
+                        <div class="mini-icon"></div>
+                        <div>
+                            <strong>Auto OCR</strong>
+                            <span>Najlepšie pre textový korpus a väčšinu bežných dokumentov.</span>
+                        </div>
+                    </div>
+                    <div class="mini-item">
+                        <div class="mini-icon"></div>
+                        <div>
+                            <strong>OCR celej strany</strong>
+                            <span>Vhodné pri skenoch alebo PDF bez použiteľnej textovej vrstvy.</span>
+                        </div>
+                    </div>
+                    <div class="mini-item">
+                        <div class="mini-icon"></div>
+                        <div>
+                            <strong>Dávkové spracovanie</strong>
+                            <span>Môžeš naraz nahrať viacero PDF a porovnať ich výstupy.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid">
+            <div>
+                <div class="card">
+                    <div class="section-title">
+                        <div>
+                            <h2>Spracovanie PDF</h2>
+                            <p>Nahraj jeden alebo viac súborov, nastav parametre a spusti extrakciu.</p>
+                        </div>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="upload-zone" id="uploadZone">
+                            <input type="file" name="pdf_files" id="pdf_file" accept=".pdf" multiple required>
+                            <div class="upload-label">↑</div>
+                            <h3>Pretiahni PDF sem alebo klikni na výber súborov</h3>
+                            <p>Podporovaný formát: <strong>.pdf</strong> • môžeš vybrať viac súborov naraz</p>
+                            <div class="selected-file" id="selectedFile" style="display:none;"></div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="ocr_mode">OCR režim</label>
+                                <select name="ocr_mode" id="ocr_mode">
+                                    <option value="auto" {% if request.form.get('ocr_mode', 'auto') == 'auto' %}selected{% endif %}>
+                                        Auto – OCR len keď je málo textu
+                                    </option>
+                                    <option value="fullpage" {% if request.form.get('ocr_mode') == 'fullpage' %}selected{% endif %}>
+                                        OCR celej strany
+                                    </option>
+                                </select>
+                                <div class="hint">Odporúčané je Auto. Produkuje menej šumu a je vhodné pre textový korpus.</div>
+                            </div>
+
+                            <div class="field">
+                                <label for="ocr_language">OCR jazyk</label>
+                                <select name="ocr_language" id="ocr_language">
+                                    <option value="eng" {% if request.form.get('ocr_language', 'eng') == 'eng' %}selected{% endif %}>English</option>
+                                    <option value="slk" {% if request.form.get('ocr_language') == 'slk' %}selected{% endif %}>Slovak</option>
+                                    <option value="ces" {% if request.form.get('ocr_language') == 'ces' %}selected{% endif %}>Czech</option>
+                                </select>
+                                <div class="hint">Vyber jazyk, ktorý sa najviac podobá obsahu dokumentu.</div>
+                            </div>
+
+                            <div class="field">
+                                <label for="header_crop">Orezať header</label>
+                                <input type="number" name="header_crop" id="header_crop" value="{{ request.form.get('header_crop', 40) }}" min="0" max="300">
+                                <div class="hint">Vyššia hodnota odstráni viac priestoru z hornej časti strany.</div>
+                            </div>
+
+                            <div class="field">
+                                <label for="footer_crop">Orezať footer</label>
+                                <input type="number" name="footer_crop" id="footer_crop" value="{{ request.form.get('footer_crop', 40) }}" min="0" max="300">
+                                <div class="hint">Použi pri dokumentoch s číslami strán alebo opakovaným footerom.</div>
+                            </div>
+
+                            <input type="hidden" name="structure_mode" value="pages">
+                        </div>
+
+                        <div class="switches">
+                            <label class="toggle">
+                                <div class="toggle-text">
+                                    <strong>Odstrániť opakujúce sa headre a footre</strong>
+                                    <span>Pomôže najmä pri skriptách, článkoch a zmluvách.</span>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    name="remove_repeated_margins"
+                                    id="remove_repeated_margins"
+                                    {% if request.form.get('remove_repeated_margins', 'on') in ('on', 'true', 'True', '1') %}checked{% endif %}
+                                >
+                            </label>
+
+                            <label class="toggle">
+                                <div class="toggle-text">
+                                    <strong>Použiť OCR</strong>
+                                    <span>V režime Auto sa OCR použije len vtedy, keď PDF neobsahuje dosť extrahovaného textu.</span>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    name="use_ocr"
+                                    id="use_ocr"
+                                    {% if request.form.get('use_ocr', 'on') in ('on', 'true', 'True', '1') %}checked{% endif %}
+                                >
+                            </label>
+                        </div>
+
+                        <div class="actions">
+                            <button type="submit" class="btn-primary">Spracovať PDF</button>
+                        </div>
+                    </form>
+
+                    {% if error %}
+                        <div class="error">{{ error }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <aside>
+                <div class="card">
+                    <div class="section-title">
+                        <div>
+                            <h2>Export výstupu</h2>
+                            <p>Rýchly export spracovaného obsahu do ďalších formátov.</p>
+                        </div>
+                    </div>
+
+                    <div class="export-stack">
+                        <form method="POST" action="/export/txt" enctype="multipart/form-data" class="export-box">
+                            <h3>TXT export</h3>
+                            <p>Vhodné na jednoduché spracovanie, čítanie alebo ďalšiu analýzu textu.</p>
+                            <div class="compact-grid">
+                                <input type="file" name="pdf_files" accept=".pdf" multiple required>
+
+                                <select name="ocr_mode">
+                                    <option value="auto">Auto OCR len keď je málo textu</option>
+                                    <option value="fullpage">OCR celej strany</option>
+                                </select>
+
+                                <input type="number" name="header_crop" value="40" min="0" max="300" placeholder="headcrop">
+                                <input type="number" name="footer_crop" value="40" min="0" max="300" placeholder="footcrop">
+
+                                <select name="ocr_language">
+                                    <option value="eng">English</option>
+                                    <option value="slk">Slovak</option>
+                                    <option value="ces">Czech</option>
+                                </select>
+
+                                <input type="hidden" name="structure_mode" value="pages">
+
+                                <label class="toggle">
+                                    <div class="toggle-text">
+                                        <strong>Čistenie okrajov</strong>
+                                        <span>Odstránenie opakovaného textu.</span>
+                                    </div>
+                                    <input type="checkbox" name="remove_repeated_margins" checked>
+                                </label>
+
+                                <label class="toggle">
+                                    <div class="toggle-text">
+                                        <strong>OCR</strong>
+                                        <span>Fallback OCR pre slabé alebo chýbajúce textové vrstvy.</span>
+                                    </div>
+                                    <input type="checkbox" name="use_ocr" checked>
+                                </label>
+
+                                <button type="submit" class="btn-secondary">Exportovať do TXT</button>
+                            </div>
+                        </form>
+
+                        <form method="POST" action="/export/json" enctype="multipart/form-data" class="export-box">
+                            <h3>JSON export</h3>
+                            <p>Vhodné pre API, indexovanie, ďalšie skripty alebo archiváciu štruktúrovaného výstupu.</p>
+                            <div class="compact-grid">
+                                <input type="file" name="pdf_files" accept=".pdf" multiple required>
+
+                                <select name="ocr_mode">
+                                    <option value="auto">Auto OCR len keď je málo textu</option>
+                                    <option value="fullpage">OCR celej strany</option>
+                                </select>
+
+                                <input type="number" name="header_crop" value="40" min="0" max="300" placeholder="headcrop">
+                                <input type="number" name="footer_crop" value="40" min="0" max="300" placeholder="footcrop">
+
+                                <select name="ocr_language">
+                                    <option value="eng">English</option>
+                                    <option value="slk">Slovak</option>
+                                    <option value="ces">Czech</option>
+                                </select>
+
+                                <input type="hidden" name="structure_mode" value="pages">
+
+                                <label class="toggle">
+                                    <div class="toggle-text">
+                                        <strong>Čistenie okrajov</strong>
+                                        <span>Odstránenie opakovaného textu.</span>
+                                    </div>
+                                    <input type="checkbox" name="remove_repeated_margins" checked>
+                                </label>
+
+                                <label class="toggle">
+                                    <div class="toggle-text">
+                                        <strong>OCR</strong>
+                                        <span>Fallback OCR pre slabé alebo chýbajúce textové vrstvy.</span>
+                                    </div>
+                                    <input type="checkbox" name="use_ocr" checked>
+                                </label>
+
+                                <button type="submit" class="btn-secondary">Exportovať do JSON</button>
+                            </div>
+                        </form>
+
+                        <form method="POST" action="/export/xml" enctype="multipart/form-data" class="export-box">
+                            <h3>XML export</h3>
+                            <p>Vhodné pre štruktúrované uloženie dokumentov, ďalšie spracovanie alebo archiváciu.</p>
+                            <div class="compact-grid">
+                                <input type="file" name="pdf_files" accept=".pdf" multiple required>
+
+                                <select name="ocr_mode">
+                                    <option value="auto">Auto OCR len keď je málo textu</option>
+                                    <option value="fullpage">OCR celej strany</option>
+                                </select>
+
+                                <input type="number" name="header_crop" value="40" min="0" max="300" placeholder="headcrop">
+                                <input type="number" name="footer_crop" value="40" min="0" max="300" placeholder="footcrop">
+
+                                <select name="ocr_language">
+                                    <option value="eng">English</option>
+                                    <option value="slk">Slovak</option>
+                                    <option value="ces">Czech</option>
+                                </select>
+
+                                <input type="hidden" name="structure_mode" value="pages">
+
+                                <label class="toggle">
+                                    <div class="toggle-text">
+                                        <strong>Čistenie okrajov</strong>
+                                        <span>Odstránenie opakovaného textu.</span>
+                                    </div>
+                                    <input type="checkbox" name="remove_repeated_margins" checked>
+                                </label>
+
+                                <label class="toggle">
+                                    <div class="toggle-text">
+                                        <strong>OCR</strong>
+                                        <span>Fallback OCR pre slabé alebo chýbajúce textové vrstvy.</span>
+                                    </div>
+                                    <input type="checkbox" name="use_ocr" checked>
+                                </label>
+
+                                <button type="submit" class="btn-secondary">Exportovať do XML</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        {% if extracted_results %}
+            {% for extracted_data in extracted_results %}
+            <section class="card">
+                <div class="results-header">
+                    <div>
+                        <h2>Výsledok spracovania</h2>
+                        <p class="meta">Prehľad spracovaného dokumentu a rozdelenie obsahu.</p>
+                    </div>
+                    <div class="result-pill">✓ Spracovanie dokončené</div>
+                </div>
+
+                <div class="overview">
+                    <div class="overview-box">
+                        <strong>{{ extracted_data.filename }}</strong>
+                        <span>Názov súboru</span>
+                    </div>
+                    <div class="overview-box">
+                        <strong>{{ extracted_data.pages_count }}</strong>
+                        <span>Počet strán</span>
+                    </div>
+                    <div class="overview-box">
+                        <strong>{{ extracted_data.pages|length }}</strong>
+                        <span>Spracované strany</span>
+                    </div>
+                    <div class="overview-box">
+                        <strong>{{ extracted_data.full_text|length }}</strong>
+                        <span>Počet znakov výstupu</span>
+                    </div>
+                    <div class="overview-box">
+                        <strong>{{ extracted_data.processing_time_seconds }}</strong>
+                        <span>Čas spracovania (s)</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <div>
+                        <h2>Strany dokumentu — {{ extracted_data.filename }}</h2>
+                        <p>Každá strana je zobrazená samostatne s finálnym textovým výstupom a doplnkovými metadátami.</p>
+                    </div>
+                </div>
+
+                <div class="result-list">
+                    {% for page in extracted_data.pages %}
+                    <article class="page-card">
+                        <div class="page-head">
+                            <div>
+                                <h3>Strana {{ page.page }}</h3>
+                                <div class="meta">Extrahovaný text, OCR fallback a základná klasifikácia obsahu</div>
+                            </div>
+
+                            <div class="badge-row">
+                                {% if page.base_text %}
+                                    <span class="badge gray">PDF text</span>
+                                {% endif %}
+                                {% if page.ocr_text %}
+                                    <span class="badge gray">OCR použité</span>
+                                {% endif %}
+                                {% if page.content_type %}
+                                    <span class="badge gray">Typ: {{ page.content_type }}</span>
+                                {% endif %}
+                                {% if page.has_images %}
+                                    <span class="badge gray">Obrázky: {{ page.images_count }}</span>
+                                {% endif %}
+                                {% if page.final_text %}
+                                    <span class="badge">Výstup pripravený</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="content">
+                            {% if page.detected_headings %}
+                                <div class="meta" style="margin-bottom: 12px;">
+                                    <strong>Nájdené nadpisy:</strong> {{ page.detected_headings | join(", ") }}
+                                </div>
+                            {% endif %}
+
+                            {% if page.base_text %}
+                                <div style="margin-bottom: 14px;">
+                                    <div class="meta" style="margin-bottom: 6px;"><strong>Base text z PDF:</strong></div>
+                                    <pre>{{ page.base_text }}</pre>
+                                </div>
+                            {% endif %}
+
+                            {% if page.ocr_text %}
+                                <div style="margin-bottom: 14px;">
+                                    <div class="meta" style="margin-bottom: 6px;"><strong>OCR text:</strong></div>
+                                    <pre>{{ page.ocr_text }}</pre>
+                                </div>
+                            {% endif %}
+
+                            <div>
+                                <div class="meta" style="margin-bottom: 6px;"><strong>Finálny výstup:</strong></div>
+                                <pre>{{ page.final_text }}</pre>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <div>
+                        <h2>Plný text dokumentu — {{ extracted_data.filename }}</h2>
+                        <p>Spojený výstup zo všetkých strán, vhodný na ďalšie spracovanie.</p>
+                    </div>
+                </div>
+                <div class="content">
+                    <pre>{{ extracted_data.full_text }}</pre>
+                </div>
+            </section>
+
+            {% if extracted_data.sections %}
+            <section class="card">
+                <div class="section-title">
+                    <div>
+                        <h2>Sekcie dokumentu — {{ extracted_data.filename }}</h2>
+                        <p>Ak backend vráti sekcie, zobrazia sa tu.</p>
+                    </div>
+                </div>
+
+                <div class="result-list">
+                    {% for section in extracted_data.sections %}
+                    <article class="page-card">
+                        <div class="page-head">
+                            <div>
+                                <h3>{{ section.heading }}</h3>
+                                <div class="meta">Strany: {{ section.pages | join(", ") }}</div>
+                            </div>
+                        </div>
+                        <div class="content">
+                            <pre>{{ section.text }}</pre>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <script>
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('pdf_file');
+        const selectedFile = document.getElementById('selectedFile');
+        const useOcrCheckbox = document.getElementById('use_ocr');
+        const ocrModeSelect = document.getElementById('ocr_mode');
+        const ocrLanguageSelect = document.getElementById('ocr_language');
+
+        function updateFileLabel() {
+            const files = fileInput.files;
+
+            if (files && files.length > 0) {
+                selectedFile.style.display = 'inline-flex';
+
+                if (files.length === 1) {
+                    selectedFile.textContent = 'Vybraný súbor: ' + files[0].name;
+                } else {
+                    const names = Array.from(files).map(file => file.name);
+                    selectedFile.textContent = 'Vybraných súborov: ' + files.length + ' (' + names.join(', ') + ')';
+                }
+            } else {
+                selectedFile.style.display = 'none';
+                selectedFile.textContent = '';
+            }
+        }
+
+        function updateOcrControls() {
+            const enabled = useOcrCheckbox.checked;
+            ocrModeSelect.disabled = !enabled;
+            ocrLanguageSelect.disabled = !enabled;
+            ocrModeSelect.style.opacity = enabled ? '1' : '0.6';
+            ocrLanguageSelect.style.opacity = enabled ? '1' : '0.6';
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', updateFileLabel);
+        }
+
+        if (useOcrCheckbox) {
+            useOcrCheckbox.addEventListener('change', updateOcrControls);
+            updateOcrControls();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileLabel();
+            }
+        });
+    </script>
+</body>
+</html>
